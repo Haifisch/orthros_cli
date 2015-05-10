@@ -1,9 +1,7 @@
 # Orthros CLI
 Command line interface for the Orthros Messenger
 
-Orthros is a crypto messenger that bases itself mainly on the RSA cryptosystem for message encryption, using AES for other personal encryption.
-
-This code is probably very buggy, and quite an abuse of nodejs in my opinion, but it seems to work just fine.
+Orthros is a crypto messenger that bases itself mainly on the RSA cryptosystem for message encryption, using AES for other on-device encryption purposes.
 
 
 ## Install
