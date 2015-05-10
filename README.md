@@ -6,7 +6,7 @@ This code is probably very buggy, and quite an abuse of nodejs in my opinion, bu
 
 ## Install
 ```bash
-npm install -g orthros_cli
+npm install -g orthros
 ```
 
 ## Usage
