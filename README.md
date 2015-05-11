@@ -18,6 +18,7 @@ Command line options;
 ./orthros check - Checks for messages in queue
 ./orthros read [Message ID] - Decrypts and reads message for ID
 ./orthros delete [Message ID] - Deletes a message given it's ID
+./orthros whoami - Prints your Orthros ID
 ```
 
 
