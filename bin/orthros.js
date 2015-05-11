@@ -22,6 +22,7 @@ var help = "Command line options;"
 			+ "\n./orthros check - Checks for messages in queue"
 			+ "\n./orthros read [Message ID] - Decrypts and reads message for ID"
 			+ "\n./orthros delete [Message ID] - Deletes a message given it's ID"
+			+ "\n./orthros whoami - Prints your Orthros ID"
 var orthros_settings =  process.env['HOME'] + "/.orthros";
 var orthros_config = orthros_settings + "/config.json";
 var orthros_api_url = "http://orthros.ninja/api/bithash.php?"
@@ -317,6 +318,14 @@ function checkArgs () {
 				console.log("Deleting message: "+args[1])
 				delete_message(args[1]);
 			}
+		} else if (args[0] == "whoami") {
+			var uuidFromConfig = uuid_from_config(function (uuid_ret) { 
+				if (uuid_ret === null) {
+					console.log("We're missing the user uuid!".red);
+				} else {
+					console.log(("Your ID: "+uuid_ret).blue);
+				};
+			});
 		} else {
 			console.log(help);
 		}
