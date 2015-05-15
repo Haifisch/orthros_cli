@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-/* 
+/*
 	Copyright 2015 Dylan "Haifisch" Laws
 */
 var fs = require('fs');
-var path = require('path'); 
+var path = require('path');
 var mkdirp = require('mkdirp');
 var colors = require('colors');
 var Prompt = require('prompt-improved');
@@ -13,16 +13,17 @@ var crypto = require('crypto');
 var read = require('read');
 var request = require('request');
 var ursa = require('ursa');
+var pkginfo = require('pkginfo')(module);
 
 var key = new NodeRSA();
 var args = process.argv.slice(2);
-var version = "v1.0.0"
+var version = module.exports.version
 var help = "Command line options;"
-			+ "\n./orthros send [Recieving UUID] \"[Message]\" - Sends supplied message to UUID, put message in quotes." 
+			+ "\n./orthros send [Recieving UUID] \"[Message]\" - Sends supplied message to UUID, put message in quotes."
 			+ "\n./orthros check - Checks for messages in queue"
 			+ "\n./orthros read [Message ID] - Decrypts and reads message for ID"
 			+ "\n./orthros delete [Message ID] - Deletes a message given it's ID"
-			+ "\n./orthros whoami - Prints your Orthros ID"
+			+ "\n./orthros whoami - Prints your Orthros ID";
 var orthros_settings =  process.env['HOME'] + "/.orthros";
 var orthros_config = orthros_settings + "/config.json";
 var orthros_api_url = "http://orthros.ninja/api/bithash.php?"
@@ -50,7 +51,7 @@ var prompt = new Prompt({
 function checkConfigDirectory (callback) {
 	fs.exists(orthros_settings, function(exists) {
 	    if (!exists) {
-	        mkdirp(orthros_settings, function(err) { 
+	        mkdirp(orthros_settings, function(err) {
 	        	if (err) {console.log("Error settings directory in; " + orthros_settings); callback(false);};
 	        	callback(true);
 			});
@@ -68,15 +69,15 @@ function getConfigFile (callback) {
 			var configParsed = JSON.parse(data);
 			if (configParsed["uuid"] === null){
 		    	callback(null);
-			} 
+			}
 			callback(configParsed);
 		}
 	});
-	
+
 }
 
 function uuid_from_config (callback) {
-	var configFile = getConfigFile(function (parsedConfig) { 
+	var configFile = getConfigFile(function (parsedConfig) {
 		if (parsedConfig === null) {
 			callback(null);
 		} else {
@@ -109,7 +110,7 @@ function sender_for_msg (msg_id, uuid, callback) {
 }
 
 function check_for_messages (argument) {
-	var uuidFromConfig = uuid_from_config(function (uuid_ret) { 
+	var uuidFromConfig = uuid_from_config(function (uuid_ret) {
 		if (uuid_ret === null) {
 			console.log("We're missing the user uuid!".red);
 		} else {
@@ -132,32 +133,28 @@ function check_for_messages (argument) {
 
 function get_private_key (callback) {
 	read({ prompt : 'Password:', silent : true }, function (err, pass) {
-		if (pass.length > 10) {
-			read({ prompt : 'Confirm password: ', silent : true }, function (err, pass_conf) {
-				if (pass == pass_conf) {
-					var configFile = getConfigFile(function (parsedConfig) { 
-						if (parsedConfig === null) {
-							console.log("Private key not found!");
-						} else {
-							var decipher = crypto.createDecipher('aes-256-ctr',pass_conf)
-							var dec = decipher.update(parsedConfig["priv"],'hex','utf8')
-							dec += decipher.final('utf8');
-							callback(dec)
-						};
-					});
+		read({ prompt : 'Confirm password: ', silent : true }, function (err, pass_conf) {
+			if (pass == pass_conf) {
+				var configFile = getConfigFile(function (parsedConfig) {
+					if (parsedConfig === null) {
+						console.log("Private key not found!");
+					} else {
+						var decipher = crypto.createDecipher('aes-256-ctr',pass_conf)
+						var dec = decipher.update(parsedConfig["priv"],'hex','utf8')
+						dec += decipher.final('utf8');
+						callback(dec)
+					};
+				});
 
-				} else {
-					console.log("Passwords don't match! Try again.".red);
-				};
-			});
-		} else {
-			console.log("Password must be at least 10 characters.".red);
-		}
+			} else {
+				console.log("Passwords don't match! Try again.".red);
+			};
+		});
 	});
 }
 
 function read_message (msg_id) {
-	var uuidFromConfig = uuid_from_config(function (uuid_ret) { 
+	var uuidFromConfig = uuid_from_config(function (uuid_ret) {
 		if (uuid_ret === null) {
 			console.log("We're missing the user uuid!".red);
 		} else {
@@ -168,7 +165,7 @@ function read_message (msg_id) {
 					crypted_msg = crypted_msg.replace(/ /g,"+");
 					var privatekey = get_private_key(function (key) {
 						ursa_key = ursa.createPrivateKey(key);
-						var dec_msg = ursa_key.decrypt(crypted_msg, 'base64', 'utf8');
+						var dec_msg = ursa_key.decrypt(crypted_msg, 'base64', 'utf8', ursa.RSA_PKCS1_PADDING);
 						console.log("Message: ".green + dec_msg)
 					});
 				};
@@ -178,7 +175,7 @@ function read_message (msg_id) {
 }
 
 function send_message (receiver, message) {
-	var uuidFromConfig = uuid_from_config(function (uuid_ret) { 
+	var uuidFromConfig = uuid_from_config(function (uuid_ret) {
 		if (uuid_ret === null) {
 			console.log("We're missing the user uuid!".red);
 		} else {
@@ -215,14 +212,14 @@ function send_message (receiver, message) {
 }
 
 function delete_message (msg_id) {
-	var uuidFromConfig = uuid_from_config(function (uuid_ret) { 
+	var uuidFromConfig = uuid_from_config(function (uuid_ret) {
 		if (uuid_ret === null) {
 			console.log("We're missing the user uuid!".red);
 		} else {
 			request.get(orthros_api_url+'action=delete_msg&UUID='+uuid_ret+'&msg_id='+msg_id, function(error, response, body) {
 				var parsedRes = JSON.parse(body);
 				if (parsedRes["error"] == 1) {
-					console.log("Message has already been deleted or doesn't exsist!".red)
+					console.log("Message has already been deleted or doesn't exsist!".red);
 				} else if (parsedRes["error"] == 0) {
 					console.log("Message deleted successfully!");
 				}
@@ -271,6 +268,9 @@ function setupAccount (argument) {
 										return console.log(err);
 									}
 									console.log("Config created successfully!".green);
+									var uuidFromConfig = uuid_from_config(function (uuid_ret) {
+										console.log(("Your new ID: "+uuid_ret).blue);
+									});
 								});
 							  };
 							});
@@ -296,7 +296,7 @@ function checkArgs () {
 				case 1:
 					if (args[1] == null) {console.log("We're missing the recieving ID"); return 0;};
 					break;
-				case 2: 
+				case 2:
 					if (args[1] == null) {console.log("We're missing the message to send"); return 0;};
 					break;
 				default:
@@ -319,7 +319,7 @@ function checkArgs () {
 				delete_message(args[1]);
 			}
 		} else if (args[0] == "whoami") {
-			var uuidFromConfig = uuid_from_config(function (uuid_ret) { 
+			var uuidFromConfig = uuid_from_config(function (uuid_ret) {
 				if (uuid_ret === null) {
 					console.log("We're missing the user uuid!".red);
 				} else {
@@ -338,7 +338,7 @@ function main (argument) {
 	console.log(("Orthros Messenger " + version).bgMagenta);
 	var checkDir = checkConfigDirectory(function (doesExsist) {
 		if (doesExsist == true) {
-			var configFile = getConfigFile(function (parsedConfig) { 
+			var configFile = getConfigFile(function (parsedConfig) {
 				if (parsedConfig === null) {
 					console.log("We're missing the user config!".red);
 					setupAccount();

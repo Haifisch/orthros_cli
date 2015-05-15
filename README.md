@@ -12,7 +12,7 @@ npm install -g orthros
 ## Usage
 
 ```
-Orthros Messenger v1.0.0
+Orthros Messenger v1.0.2
 Command line options;
 ./orthros send [Recieving UUID] "[Message]" - Sends supplied message to UUID, put message in quotes.
 ./orthros check - Checks for messages in queue
