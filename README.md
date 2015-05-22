@@ -12,7 +12,7 @@ npm install -g orthros
 ## Usage
 
 ```
-Orthros Messenger v1.0.3
+Orthros Messenger v1.0.4
 Command line options;
 ./orthros send [Recieving UUID] "[Message]" - Sends supplied message to UUID, put message in quotes.
 ./orthros check - Checks for messages in queue
@@ -21,5 +21,9 @@ Command line options;
 ./orthros whoami - Prints your Orthros ID
 ```
 
+## Changelog
+### v1.0.4
+- Use one-time use key for message delete identity protectiona
+- API available at api.orthros.ninja, documentation coming soon.
 
 Copyright (c) 2015 Dylan "Haifisch" Laws

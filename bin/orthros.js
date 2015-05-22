@@ -21,13 +21,12 @@ var version = module.exports.version
 var help = "Command line options;"
 			+ "\n./orthros send [Recieving UUID] \"[Message]\" - Sends supplied message to UUID, put message in quotes."
 			+ "\n./orthros check - Checks for messages in queue"
-			+ "\n./orthros read [Message ID] - Decrypts and reads message for ID"
-			+ "\n./orthros delete [Message ID] - Deletes a message given it's ID"
+			+ "\n./orthros read [Message ID] - Decrypts and reads message given its ID"
+			+ "\n./orthros delete [Message ID] - Deletes a message given its ID"
 			+ "\n./orthros whoami - Prints your Orthros ID";
 var orthros_settings =  process.env['HOME'] + "/.orthros";
 var orthros_config = orthros_settings + "/config.json";
-var orthros_api_url = "http://orthros.ninja/api/bithash.php?"
-
+var orthros_api_url = "https://api.orthros.ninja?"
 var prompt = new Prompt({
     prefix        : '',
     suffix        : ': ',
@@ -112,7 +111,7 @@ function sender_for_msg (msg_id, uuid, callback) {
 function check_for_messages (argument) {
 	var uuidFromConfig = uuid_from_config(function (uuid_ret) {
 		if (uuid_ret === null) {
-			console.log("We're missing the user uuid!".red);
+			console.log("We're missing the user ID from the config!".red);
 		} else {
 			var msgs = all_msgs_in_que(uuid_ret, function (msgs_qued) {
 				if (msgs_qued != null) {
@@ -120,9 +119,9 @@ function check_for_messages (argument) {
 					sender_for_msg(msgs_qued[i], uuid_ret, function (sender) {
 						var d = new Date(0);
 						d.setUTCSeconds(sender[0]);
-						console.log(('Msg ID: '+sender[0]).blue)
-						console.log(('\tFrom: '+sender[1]).green);
-						console.log(('\tSent: '+d).green)
+						console.log(('Message ID: '+sender[0]).blue)
+						console.log(('\tFrom user: '+sender[1]).green);
+						console.log(('\tSent timestamp: '+d).green)
 					})
 				};
 				};
@@ -156,7 +155,7 @@ function get_private_key (callback) {
 function read_message (msg_id) {
 	var uuidFromConfig = uuid_from_config(function (uuid_ret) {
 		if (uuid_ret === null) {
-			console.log("We're missing the user uuid!".red);
+			console.log("We're missing the user ID from the config!".red);
 		} else {
 			request.get(orthros_api_url+'action=get&UUID='+uuid_ret+'&msg_id='+msg_id, function(error, response, body) {
 				var parsedRes = JSON.parse(body);
@@ -165,7 +164,7 @@ function read_message (msg_id) {
 					crypted_msg = crypted_msg.replace(/ /g,"+");
 					var privatekey = get_private_key(function (key) {
 						ursa_key = ursa.createPrivateKey(key);
-						var dec_msg = ursa_key.decrypt(crypted_msg, 'base64', 'utf8', ursa.RSA_PKCS1_PADDING);
+						var dec_msg = ursa_key.decrypt(crypted_msg, 'base64', 'utf8');
 						console.log("Message: ".green + dec_msg)
 					});
 				};
@@ -177,10 +176,11 @@ function read_message (msg_id) {
 function send_message (receiver, message) {
 	var uuidFromConfig = uuid_from_config(function (uuid_ret) {
 		if (uuid_ret === null) {
-			console.log("We're missing the user uuid!".red);
+			console.log("We're missing the user ID from the config!".red);
 		} else {
 			request.get(orthros_api_url+'action=download&UUID='+uuid_ret+'&receiver='+receiver, function(error, response, body) {
 				var parsedRes = JSON.parse(body);
+				if (parsedRes["error"] == 1) {console.log("Failed to send message, be sure that the receiving address is correct.")};
 				if (parsedRes["pub"]) {
 					ursa_key = ursa.createPublicKey(parsedRes["pub"]);
 					var enc_msg = ursa_key.encrypt(message, 'utf8', 'base64');
@@ -193,8 +193,8 @@ function send_message (receiver, message) {
 							var json_msg = {"msg":enc_msg, "sender":uuid_ret}
 							request.post({
 							  headers: {'content-type' : 'application/x-www-form-urlencoded'},
-							  url:     orthros_api_url+'action=send&UUID='+uuid_ret+'&receiver='+receiver+'&key='+dec_key,
-							  body:    "msg="+JSON.stringify(json_msg)
+							  url:     orthros_api_url+'action=send&UUID='+uuid_ret+'&receiver='+receiver,
+							  body:    "msg="+JSON.stringify(json_msg)+"&key="+dec_key,
 							}, function(error, response, body){
 								var parsedRes = JSON.parse(body);
 								if (parsedRes["error"] == 1) {
@@ -214,15 +214,29 @@ function send_message (receiver, message) {
 function delete_message (msg_id) {
 	var uuidFromConfig = uuid_from_config(function (uuid_ret) {
 		if (uuid_ret === null) {
-			console.log("We're missing the user uuid!".red);
+			console.log("We're missing the user ID from the config!".red);
 		} else {
-			request.get(orthros_api_url+'action=delete_msg&UUID='+uuid_ret+'&msg_id='+msg_id, function(error, response, body) {
+			request.get(orthros_api_url+'action=gen_key&UUID='+uuid_ret, function(error, response, body) {
 				var parsedRes = JSON.parse(body);
-				if (parsedRes["error"] == 1) {
-					console.log("Message has already been deleted or doesn't exsist!".red);
-				} else if (parsedRes["error"] == 0) {
-					console.log("Message deleted successfully!");
-				}
+				var delete_key = parsedRes["key"]
+
+				var privatekey = get_private_key(function (key) {
+					var send_key = parsedRes["key"]
+					ursa_key = ursa.createPrivateKey(key);
+					var dec_key = ursa_key.decrypt(send_key, 'base64', 'utf8', ursa.RSA_PKCS1_PADDING);
+					request.post({
+					  headers: {'content-type' : 'application/x-www-form-urlencoded'},
+					  url:     orthros_api_url+'action=delete_msg&UUID='+uuid_ret+'&msg_id='+msg_id,
+					  body:    "key="+dec_key
+					}, function(error, response, body){
+						var parsedRes = JSON.parse(body);
+						if (parsedRes["error"] == 1) {
+							console.log("Message has already been deleted or doesn't exsist!".red);
+						} else if (parsedRes["error"] == 0) {
+							console.log("Message deleted successfully!");
+						}
+					});
+				});
 			});
 		};
 	});
@@ -292,21 +306,15 @@ function setupAccount (argument) {
 function checkArgs () {
 	if (args.length > 0) {
 		if (args[0] == "send") {
-			switch (args) {
-				case 1:
-					if (args[1] == null) {console.log("We're missing the recieving ID"); return 0;};
-					break;
-				case 2:
-					if (args[1] == null) {console.log("We're missing the message to send"); return 0;};
-					break;
-				default:
-			}
+			if (args[1] == null) {console.log("We're missing the recieving ID"); return 0;};
+			if (args[1] == null) {console.log("We're missing the message to send"); return 0;};
 			send_message(args[1], args[2]);
 		} else if (args[0] == "check") {
 			check_for_messages();
 		} else if (args[0] == "read") {
 			if (args[1] == null) {
-				console.log("We're missing the message ID!".red)
+				console.log("We're missing the message ID!".red);
+				return 0;
 			} else {
 				console.log("Retrieving message: "+args[1])
 				read_message(args[1]);
@@ -314,6 +322,7 @@ function checkArgs () {
 		} else if (args[0] == "delete") {
 			if (args[1] == null) {
 				console.log("We're missing the message ID!".red)
+				return 0;
 			} else {
 				console.log("Deleting message: "+args[1])
 				delete_message(args[1]);
@@ -321,7 +330,7 @@ function checkArgs () {
 		} else if (args[0] == "whoami") {
 			var uuidFromConfig = uuid_from_config(function (uuid_ret) {
 				if (uuid_ret === null) {
-					console.log("We're missing the user uuid!".red);
+					console.log("We're missing the user ID from the config!".red);
 				} else {
 					console.log(("Your ID: "+uuid_ret).blue);
 				};
