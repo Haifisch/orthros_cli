@@ -12,7 +12,7 @@ npm install -g orthros
 ## Usage
 
 ```
-Orthros Messenger v1.0.4
+Orthros Messenger v1.0.5
 Command line options;
 ./orthros send [Recieving UUID] "[Message]" - Sends supplied message to UUID, put message in quotes.
 ./orthros check - Checks for messages in queue
@@ -21,7 +21,20 @@ Command line options;
 ./orthros whoami - Prints your Orthros ID
 ```
 
+## Development configuration
+To use your own server whether for development or internal reasons you can create a file in the Orthros configuration directory ***~/.orthros*** with the following data.
+
+***json
+{
+  "development_url":"https://someurl.ninja?"
+}
+***
+
 ## Changelog
+### v1.0.5
+- Check public key format for URL encoded breaks and spaces
+- Minor bug fixes
+
 ### v1.0.4
 - Use one-time use key for message delete identity protectiona
 - API available at api.orthros.ninja, documentation coming soon.

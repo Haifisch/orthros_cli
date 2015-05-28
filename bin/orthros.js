@@ -72,7 +72,6 @@ function getConfigFile (callback) {
 			callback(configParsed);
 		}
 	});
-
 }
 
 function uuid_from_config (callback) {
@@ -144,7 +143,6 @@ function get_private_key (callback) {
 						callback(dec)
 					};
 				});
-
 			} else {
 				console.log("Passwords don't match! Try again.".red);
 			};
@@ -182,7 +180,12 @@ function send_message (receiver, message) {
 				var parsedRes = JSON.parse(body);
 				if (parsedRes["error"] == 1) {console.log("Failed to send message, be sure that the receiving address is correct.")};
 				if (parsedRes["pub"]) {
-					ursa_key = ursa.createPublicKey(parsedRes["pub"]);
+					// strip, fix, replace.
+					public_key = parsedRes["pub"].replace(/-----BEGIN PUBLIC KEY-----/g,"");
+					public_key = public_key.replace(/-----END PUBLIC KEY-----/g,"");
+					public_key = public_key.replace(/ /g,"+");
+					public_key = "-----BEGIN PUBLIC KEY-----"+public_key+"-----END PUBLIC KEY-----";
+					ursa_key = ursa.createPublicKey(public_key);
 					var enc_msg = ursa_key.encrypt(message, 'utf8', 'base64');
 					request.get(orthros_api_url+'action=gen_key&UUID='+uuid_ret, function(error, response, body) {
 						var parsedRes = JSON.parse(body);
@@ -343,10 +346,27 @@ function checkArgs () {
 	}
 }
 
+process.on('uncaughtException', function (err) {
+	// TODO: better error checking, currently assumes the server was unreachable and returned data that couldn't be parsed.
+	console.log(err.stack);
+  console.log("An error was caught when performing this action.".red+"\nPlease make sure you're able to connect to the Orthros server or your own local server.");
+  process.exit(1)
+});
+
 function main (argument) {
 	console.log(("Orthros Messenger " + version).bgMagenta);
 	var checkDir = checkConfigDirectory(function (doesExsist) {
 		if (doesExsist == true) {
+			fs.exists(orthros_settings+"/.development.config", function(exists) {
+				fs.readFile(orthros_settings+"/.development.config", {encoding: 'utf-8'}, function(err,data){
+					if (!err) {
+						var configParsed = JSON.parse(data);
+						if (!(configParsed["development_url"] === null)){
+							if (exists) {orthros_api_url = configParsed["development_url"]; console.log("!!! Using development server !!!".red)};
+						}
+					}
+				});
+			});
 			var configFile = getConfigFile(function (parsedConfig) {
 				if (parsedConfig === null) {
 					console.log("We're missing the user config!".red);
