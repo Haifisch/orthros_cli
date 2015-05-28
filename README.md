@@ -22,8 +22,9 @@ Command line options;
 ```
 
 ## Development configuration
-To use your own server whether for development or internal reasons you can create a file in the Orthros configuration directory ```~/.orthros``` with the following data.
+To use your own server whether for development or internal reasons you can create a file in the Orthros configuration directory ```~/.orthros/.development.config``` with the following data.
 
+An open version of the server is available [here](https://github.com/Haifisch/orthros_cli)
 ```json
 {
   "development_url":"https://someurl.ninja?"

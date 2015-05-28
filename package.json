@@ -1,6 +1,6 @@
 {
   "name": "orthros",
-  "version": "1.0.5",
+  "version": "1.0.5-2",
   "description": "Orthros NodeJS CLI",
   "bin": "bin/orthros.js",
   "dependencies": {
